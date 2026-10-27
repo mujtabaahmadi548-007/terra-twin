@@ -352,6 +352,8 @@
           <button type="button" class="chip" id="chipGround" aria-pressed="false" title="Also show aircraft parked or taxiing on the ground"><i data-lucide="tower-control"></i>Ground traffic</button>
         </div>
         <div class="helper-box" id="airHelper" hidden>
+          <div id="airHelperRemote" hidden><b>Not available on the website.</b> The free flight feeds block websites, so live aircraft only work when Terra Twin runs on your own PC: download the helper, put it next to <code>index.html</code>, run <code>python terra-server.py</code> there, then open <code>http://localhost:8000</code>.</div>
+          <div id="airHelperLocal">
           <div><b>One-time setup.</b> The free flight-tracking feeds don't allow web pages to read them (no CORS), so aircraft come through a small helper that replaces <code>python -m http.server 8000</code>.</div>
           <ol>
             <li>Click <b>Download helper</b> and move <code>terra-server.py</code> into the folder that holds <code>index.html</code>.</li>
@@ -359,6 +361,7 @@
             <li>In that folder type <code>python terra-server.py</code> and press Enter.</li>
             <li>Reload this page.</li>
           </ol>
+          </div>
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn !h-8 !text-[12px]" id="btnHelperDownload"><i data-lucide="download"></i>Download helper</button>
             <button type="button" class="btn !h-8 !text-[12px]" id="btnHelperRetry"><i data-lucide="refresh-cw"></i>Check again</button>
@@ -2978,8 +2981,9 @@ void main() {
   /* =====================================================================
    * 22. Live planet: shared helpers
    * ===================================================================== */
+  function isLocalHost() { return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(location.hostname); }
   function loadLiveSettings() {
-    const out = { ...LIVE_DEFAULTS };
+    const out = { ...LIVE_DEFAULTS, aircraft: isLocalHost() };
     try {
       const saved = JSON.parse(store.get(LS.live) || '{}');
       for (const k of Object.keys(LIVE_DEFAULTS)) {
@@ -3360,10 +3364,14 @@ void main() {
   function renderAirStatus() {
     const el = $('#stAir');
     $('#airHelper').hidden = !(air.on && air.status === 'needs-helper');
+    $('#airHelperRemote').hidden = isLocalHost();
+    $('#airHelperLocal').hidden = !isLocalHost();
     if (!air.on) { setStatusLine(el, '', 'Off'); return; }
     switch (air.status) {
       case 'detecting': setStatusLine(el, 'busy', 'Connecting to the aircraft feed…'); break;
-      case 'needs-helper': setStatusLine(el, 'bad', 'Needs the local helper — follow the steps below once.'); break;
+      case 'needs-helper':
+        setStatusLine(el, 'bad', isLocalHost() ? 'Needs the local helper — follow the steps below once.' : 'Aircraft only work on your own PC with the helper.');
+        break;
       case 'zoom': setStatusLine(el, '', `Zoom in below ${fmtDistance(LIVE_TIMING.airMaxAltM)} altitude to load aircraft.`); break;
       case 'error': setStatusLine(el, 'bad', `Feed problem: ${air.error}. Retrying every 10 s.`); break;
       case 'ok': {
